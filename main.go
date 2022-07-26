@@ -13,13 +13,18 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+const (
+	PlaylistMaxSize = 10
+)
+
 // Bot parameters
 var (
 	GuildID        = flag.String("guild", "", "Test guild ID. If not passed - bot registers commands globally")
 	BotToken       = flag.String("token", "", "Bot access token")
 	ChannelID      = flag.String("channel", "", "Test Channel ID")
 	RemoveCommands = flag.Bool("rmcmd", true, "Remove all commands after shutdowning or not")
-	buffer         = make([][]byte, 0)
+	VoiceBuffer    = make([][]byte, 0)
+	Playlist       = NewSongQueue(PlaylistMaxSize)
 )
 
 var s *discordgo.Session
@@ -44,11 +49,24 @@ var (
 			Description: "Basic command",
 		},
 		{
-			Name: "airhorn",
-			// All commands and options must have a description
-			// Commands/options without description will fail the registration
-			// of the command.
+			Name:        "airhorn",
 			Description: "Cover your ears",
+		},
+		{
+			Name:        "add-music",
+			Description: "Add a music url to the queue",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "music-url",
+					Description: "Provide a url that links to a music video. It will be added to the song queue.",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "next-music",
+			Description: "Get next music url from the queue",
 		},
 	}
 
@@ -67,6 +85,44 @@ var (
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Content: "Hey there! Congratulations, you just executed your first slash command",
+				},
+			})
+		},
+		"add-music": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			options := i.ApplicationCommandData().Options
+			optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+			for _, opt := range options {
+				optionMap[opt.Name] = opt
+			}
+
+			songURL := optionMap["music-url"].StringValue()
+			Playlist.Add(songURL)
+			currSize := Playlist.Size()
+
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("added %s to the playlist\n\n there is now %d song(s) in the playlist", songURL, currSize),
+				},
+			})
+		},
+		"next-music": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			songURL, err := Playlist.GetNext()
+			if err != nil {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: fmt.Sprintf("failed to play music from playlist: %s", err.Error()),
+					},
+				})
+				return
+			}
+
+			currSize := Playlist.Size()
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("got %s from the playlist\n\n there is now %d song(s) in the playlist", songURL, currSize),
 				},
 			})
 		},
@@ -92,8 +148,8 @@ func main() {
 	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
-	err = s.Open()
-	if err != nil {
+
+	if err = s.Open(); err != nil {
 		log.Fatalf("Cannot open the session: %v", err)
 	}
 
@@ -106,7 +162,6 @@ func main() {
 		}
 		registeredCommands[i] = cmd
 	}
-
 	defer s.Close()
 
 	stop := make(chan os.Signal, 1)
@@ -116,14 +171,6 @@ func main() {
 
 	if *RemoveCommands {
 		log.Println("Removing commands...")
-		// // We need to fetch the commands, since deleting requires the command ID.
-		// // We are doing this from the returned commands on line 375, because using
-		// // this will delete all the commands, which might not be desirable, so we
-		// // are deleting only the commands that we added.
-		// registeredCommands, err := s.ApplicationCommands(s.State.User.ID, *GuildID)
-		// if err != nil {
-		// 	log.Fatalf("Could not fetch registered commands: %v", err)
-		// }
 
 		for _, v := range registeredCommands {
 			err := s.ApplicationCommandDelete(s.State.User.ID, *GuildID, v.ID)
@@ -136,7 +183,7 @@ func main() {
 	log.Println("Gracefully shutting down.")
 }
 
-// loadSound attempts to load an encoded sound file from disk.
+// loadSound attempts to load a discord encoded sound file from disk.
 func loadSound() error {
 	file, err := os.Open("airhorn.dca")
 	if err != nil {
@@ -175,7 +222,7 @@ func loadSound() error {
 		}
 
 		// Append encoded pcm data to the buffer.
-		buffer = append(buffer, InBuf)
+		VoiceBuffer = append(VoiceBuffer, InBuf)
 	}
 }
 
@@ -195,7 +242,7 @@ func playSound(s *discordgo.Session, guildID, channelID string) (err error) {
 	vc.Speaking(true)
 
 	// Send the buffer data.
-	for _, buff := range buffer {
+	for _, buff := range VoiceBuffer {
 		vc.OpusSend <- buff
 	}
 
