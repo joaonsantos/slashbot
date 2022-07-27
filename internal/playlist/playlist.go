@@ -2,6 +2,8 @@ package playlist
 
 import "errors"
 
+const DefaultPlaylistMaxSize = 10
+
 type Playlist struct {
 	queue    []string
 	currSize int

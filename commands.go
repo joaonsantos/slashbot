@@ -19,14 +19,14 @@ var (
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "music-url",
-					Description: "Add an url to the playlist. It must link to an audio stream on youtube.",
+					Description: "Add an url item to the playlist, it must link to a youtube video",
 					Required:    true,
 				},
 			},
 		},
 		{
 			Name:        "next-music",
-			Description: "Get next music url from the queue",
+			Description: "Get next item from the queue",
 		},
 		{
 			Name:        "skip-music",
@@ -60,7 +60,7 @@ var (
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: fmt.Sprintf("added %s to the playlist\n\n %d song(s) now in the playlist", songURL, currSize),
+					Content: fmt.Sprintf("added %s to the playlist\n\n %d item(s) now in the playlist", songURL, currSize),
 				},
 			})
 		},
@@ -76,6 +76,7 @@ var (
 					})
 					return
 				}
+				defer vc.Disconnect()
 
 				for Playlist.Size() != 0 {
 					songURL, err := Playlist.GetNext()
@@ -83,7 +84,7 @@ var (
 						s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 							Type: discordgo.InteractionResponseChannelMessageWithSource,
 							Data: &discordgo.InteractionResponseData{
-								Content: fmt.Sprintf("failed to get music from playlist: %s", err.Error()),
+								Content: fmt.Sprintf("failed to get an item from the playlist: %s", err.Error()),
 							},
 						})
 						return
@@ -92,17 +93,23 @@ var (
 					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 						Type: discordgo.InteractionResponseChannelMessageWithSource,
 						Data: &discordgo.InteractionResponseData{
-							Content: fmt.Sprintf("playing %s\n\n %d song(s) remaining in the playlist", songURL, currSize),
+							Content: fmt.Sprintf("playing %s\n\n %d item(s) remaining in the playlist", songURL, currSize),
 						},
 					})
-					StreamAudio(vc, *GuildID, *ChannelID, songURL)
+					if err := YtSession.StreamYoutubeVideo(vc, songURL); err != nil {
+						s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+							Type: discordgo.InteractionResponseChannelMessageWithSource,
+							Data: &discordgo.InteractionResponseData{
+								Content: fmt.Sprintf("audio stream failed: %s", err.Error()),
+							},
+						})
+					}
 				}
-				vc.Disconnect()
 			}(s)
 
 		},
 		"skip-music": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			if err := StopStream(); err != nil {
+			if err := YtSession.StopStream(); err != nil {
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{

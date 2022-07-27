@@ -11,18 +11,18 @@ import (
 	"github.com/kkdai/youtube/v2"
 )
 
+const DefaultIntervalTimeout = 500 * time.Millisecond
+
 type YoutubeSession struct {
 	client          youtube.Client
 	encodingSession *dca.EncodeSession
-	stopSignal      chan struct{}
 	intervalTimeout time.Duration
 }
 
-func NewSession() *YoutubeSession {
+func NewSession(intervalTimeout time.Duration) *YoutubeSession {
 	return &YoutubeSession{
 		client:          youtube.Client{},
-		stopSignal:      make(chan struct{}),
-		intervalTimeout: 500 * time.Millisecond,
+		intervalTimeout: intervalTimeout,
 	}
 }
 
