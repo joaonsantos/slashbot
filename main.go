@@ -8,8 +8,8 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/cloud-discord/slashbot/internal/playlist"
-	"github.com/cloud-discord/slashbot/internal/youtube"
+	"github.com/joaonsantos/slashbot/internal/playlist"
+	"github.com/joaonsantos/slashbot/internal/youtube"
 )
 
 // Bot parameters

@@ -1,4 +1,4 @@
-module github.com/cloud-discord/slashbot
+module github.com/joaonsantos/slashbot
 
 go 1.18
 
