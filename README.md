@@ -19,13 +19,16 @@ Also, this seemed like a good idea to practice go channels and concurrency anywa
 # running
 
 ## locally
+
+Make sure [ffmpeg](https://ffmpeg.org/) is installed.
 ```bash
 $ go run . -guild <guild_id> -channel <channel_id> -token <bot_token>
 ```
 
 ## docker (detached)
 ```bash
-docker build -t bot . && docker run --rm -d bot -guild <guild_id> -channel <channel_id> -token <bot_token>
+$ docker build -t ffmpeg-alpine -f dockerfile.ffmpeg .
+$ docker build -t bot . && docker run --rm -d bot -guild <guild_id> -channel <channel_id> -token <bot_token>
 ```
 You can get the guild and channel id values easily by [activating developer mode](https://apps.uk/discord-developer-mode/).
 

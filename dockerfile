@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags="-w -s" -o /slashbot .
 
 # alpine
-FROM alpine
+FROM ffmpeg-alpine
 
 COPY --from=builder /slashbot /slashbot
 
