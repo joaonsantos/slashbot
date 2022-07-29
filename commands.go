@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/joaonsantos/slashbot/internal/youtube"
 )
 
 var (
@@ -54,6 +55,15 @@ var (
 			}
 
 			songURL := optionMap["music-url"].StringValue()
+			if err := youtube.ValidateURL(songURL); err != nil {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: fmt.Sprintf("failed to validate url: %s", err.Error()),
+					},
+				})
+				return
+			}
 			Playlist.Add(songURL)
 			currSize := Playlist.Size()
 

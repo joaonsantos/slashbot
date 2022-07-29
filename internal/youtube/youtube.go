@@ -87,3 +87,8 @@ func (yt *YoutubeSession) StopStream() error {
 	}
 	return yt.encodingSession.Stop()
 }
+
+func ValidateURL(url string) error {
+	_, err := youtube.ExtractVideoID(url)
+	return err
+}
