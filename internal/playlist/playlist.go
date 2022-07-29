@@ -1,6 +1,8 @@
 package playlist
 
-import "errors"
+import (
+	"errors"
+)
 
 const DefaultPlaylistMaxSize = 10
 
@@ -26,7 +28,6 @@ func (pl *Playlist) Add(url string) error {
 	}
 	pl.queue = append(pl.queue, url)
 	pl.currSize += 1
-
 	return nil
 }
 
@@ -36,9 +37,8 @@ func (pl *Playlist) GetNext() (string, error) {
 	}
 
 	nextSong := pl.queue[0]
-	pl.queue = pl.queue[:1]
+	pl.queue = pl.queue[1:]
 	pl.currSize -= 1
-
 	return nextSong, nil
 }
 

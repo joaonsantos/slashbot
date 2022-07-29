@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -58,6 +59,7 @@ func (yt *YoutubeSession) StreamYoutubeVideo(vc *discordgo.VoiceConnection, url 
 	vc.Speaking(true)
 
 	defer func(vc *discordgo.VoiceConnection) {
+		log.Println("cleaning up encoding session")
 		vc.Speaking(false)
 		yt.encodingSession = nil
 		// Sleep for a specificed amount of time before ending.
@@ -89,6 +91,15 @@ func (yt *YoutubeSession) StopStream() error {
 }
 
 func ValidateURL(url string) error {
+	if strings.Contains(url, "playlist?list") {
+		return errors.New("this command does not support adding playlists")
+	}
+	if !strings.HasPrefix(url, "https://www.youtube.com/watch?v=") {
+		return errors.New("provide a valid link to a youtube audio stream")
+	}
 	_, err := youtube.ExtractVideoID(url)
-	return err
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -59,7 +59,7 @@ var (
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
-						Content: fmt.Sprintf("failed to validate url: %s", err.Error()),
+						Content: fmt.Sprintf("cannot add item: %s", err.Error()),
 					},
 				})
 				return
@@ -117,13 +117,20 @@ var (
 				}
 			}(s)
 
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "no items left in the playlist",
+				},
+			})
+
 		},
 		"skip-music": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			if err := YtSession.StopStream(); err != nil {
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
-						Content: fmt.Sprintf("failed to get music from playlist: %s", err.Error()),
+						Content: fmt.Sprintf("failed stop audio stream: %s", err.Error()),
 					},
 				})
 				return
