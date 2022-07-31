@@ -46,12 +46,16 @@ func (yt *YoutubeSession) StreamYoutubeVideo(vc *discordgo.VoiceConnection, url 
 	if err != nil {
 		return err
 	}
+	defer stream.Close()
 
 	encodingSession, err := dca.EncodeMem(stream, options)
 	if err != nil {
 		return err
 	}
-	defer encodingSession.Cleanup()
+	defer func(encodingSession *dca.EncodeSession, yt *YoutubeSession) {
+		encodingSession.Cleanup()
+		yt.encodingSession = nil
+	}(encodingSession, yt)
 
 	// Sleep for a specified amount of time before playing the sound
 	time.Sleep(yt.intervalTimeout)
@@ -61,7 +65,6 @@ func (yt *YoutubeSession) StreamYoutubeVideo(vc *discordgo.VoiceConnection, url 
 	defer func(vc *discordgo.VoiceConnection) {
 		log.Println("cleaning up encoding session")
 		vc.Speaking(false)
-		yt.encodingSession = nil
 		// Sleep for a specificed amount of time before ending.
 		time.Sleep(yt.intervalTimeout)
 	}(vc)
