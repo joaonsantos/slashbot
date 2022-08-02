@@ -29,7 +29,7 @@ func NewSession(intervalTimeout time.Duration) *YoutubeSession {
 }
 
 func (yt *YoutubeSession) StreamYoutubeVideo(vc *discordgo.VoiceConnection, url string) error {
-	const audioFilename = "audio.mp4"
+	const audioFilename = "/tmp/audio.mp4"
 
 	options := dca.StdEncodeOptions
 	options.BufferedFrames = 100
