@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -28,7 +29,8 @@ func NewSession(intervalTimeout time.Duration) *YoutubeSession {
 }
 
 func (yt *YoutubeSession) StreamYoutubeVideo(vc *discordgo.VoiceConnection, url string) error {
-	// Change these accordingly
+	const audioFilename = "audio.mp4"
+
 	options := dca.StdEncodeOptions
 	options.BufferedFrames = 100
 	options.FrameDuration = 20
@@ -48,42 +50,47 @@ func (yt *YoutubeSession) StreamYoutubeVideo(vc *discordgo.VoiceConnection, url 
 	}
 	defer stream.Close()
 
-	encodingSession, err := dca.EncodeMem(stream, options)
+	if err := saveAudio(audioFilename, stream); err != nil {
+		return err
+	}
+	yt.encodingSession, err = dca.EncodeFile(audioFilename, options)
 	if err != nil {
 		return err
 	}
-	defer func(encodingSession *dca.EncodeSession, yt *YoutubeSession) {
-		encodingSession.Cleanup()
-		yt.encodingSession = nil
-	}(encodingSession, yt)
-
-	// Sleep for a specified amount of time before playing the sound
-	time.Sleep(yt.intervalTimeout)
-	yt.encodingSession = encodingSession
-	vc.Speaking(true)
-
-	defer func(vc *discordgo.VoiceConnection) {
-		log.Println("cleaning up encoding session")
-		vc.Speaking(false)
-		// Sleep for a specificed amount of time before ending.
-		time.Sleep(yt.intervalTimeout)
-	}(vc)
 
 	stopChan := make(chan error)
-	dca.NewStream(encodingSession, vc, stopChan)
+	dca.NewStream(yt.encodingSession, vc, stopChan)
 
-	stats := encodingSession.Stats()
+	yt.startSession(vc)
+	defer yt.stopSession(vc)
+
+	stats := yt.encodingSession.Stats()
 	log.Printf("started streaming: %s", video.Title)
 	log.Printf("stream stats: %+v", stats)
 
 	if err := <-stopChan; err != nil && err != io.EOF {
 		return err
 	}
-	stats = encodingSession.Stats()
+	stats = yt.encodingSession.Stats()
 	log.Printf("streaming completed: %s", video.Title)
 	log.Printf("stream stats: %+v", stats)
 
 	return nil
+}
+
+func (yt *YoutubeSession) startSession(vc *discordgo.VoiceConnection) {
+	// Sleep for a specified amount of time before playing the sound
+	time.Sleep(yt.intervalTimeout)
+	vc.Speaking(true)
+}
+
+func (yt *YoutubeSession) stopSession(vc *discordgo.VoiceConnection) {
+	log.Println("cleaning up encoding session")
+	vc.Speaking(false)
+	yt.encodingSession.Cleanup()
+	yt.encodingSession = nil
+	// Sleep for a specificed amount of time before ending.
+	time.Sleep(yt.intervalTimeout)
 }
 
 func (yt *YoutubeSession) StopStream() error {
@@ -91,6 +98,20 @@ func (yt *YoutubeSession) StopStream() error {
 		return errors.New("no audio currently playing")
 	}
 	return yt.encodingSession.Stop()
+}
+
+func saveAudio(filename string, src io.ReadCloser) error {
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = io.Copy(f, src)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func ValidateURL(url string) error {
